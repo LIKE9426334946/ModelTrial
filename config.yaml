@@ -1,0 +1,13 @@
+dataset: kvasir-seg
+
+datasets:
+  root: ./datasets/kvasir-seg
+  images: images
+  masks: masks
+  num_classes: 23
+  image_size: [245, 24]
+  batch_size: 23
+
+training:
+  epochs: 20
+  learning_rate: 0.001
