@@ -12,9 +12,11 @@ class SelfDefineDataset(Dataset):
         super().__init__()
 
         self.image_dir = Path(root) / images
-        self.mask_dir = Path(root) / images
+        self.mask_dir = Path(root) / masks
 
-        self.image_paths = sorted(self.image_dir.glob(".jpg"))
+        self.image_paths = sorted(
+            self.image_dir.glob("*.jpg")
+        )  # 注意，这里要使用通配符*来匹配所有文件
 
         # 对图片进行预处理
         self.image_transform = v2.Compose(
