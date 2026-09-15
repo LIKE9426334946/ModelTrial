@@ -4,5 +4,4 @@ __pycache__
 /datasets/
 /demo/
 /outputs/
-/data
-/test.py
+/data/

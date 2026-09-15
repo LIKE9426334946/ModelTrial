@@ -4,10 +4,16 @@ datasets:
   root: ./datasets/kvasir-seg
   images: images
   masks: masks
-  num_classes: 23
-  image_size: [245, 24]
-  batch_size: 23
+  num_classes: 2 # 背景、息肉
+  image_size: [256, 256]
+  batch_size: 4
+  num_workers: 0
+  split_ratio: [0.8, 0.1, 0.1]
+
+model:
+  out_channels: 1
 
 training:
   epochs: 20
   learning_rate: 0.001
+  seed: 23
