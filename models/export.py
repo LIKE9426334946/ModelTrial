@@ -9,3 +9,4 @@ x = torch.randn(4, 3, 256, 256)
 torch.onnx.export(
     model, x, "onnx/model01.onnx", input_names=["input"], output_names=["output"]
 )
+
