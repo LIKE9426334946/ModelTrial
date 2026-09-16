@@ -17,6 +17,8 @@ def evaluate(model, loader, criterion, device):
         loss_sum += loss.item() * images.size(0)
 
         predictions = (logits.sigmoid() >= 0.5).long()
+        print("预测息肉像素占比：", predictions.float().mean().item())
+        print("真实息肉像素占比：", masks.float().mean().item())
         tp, fp, fn, tn = smp.metrics.get_stats(predictions, masks.long(), mode="binary")
 
         tp_list.append(tp.cpu())
