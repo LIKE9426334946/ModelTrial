@@ -63,12 +63,6 @@ def main():
         shuffle=False,
         num_workers=data_config["num_workers"],
     )
-    test_loader = DataLoader(
-        test_dataset,
-        batch_size=data_config["batch_size"],
-        shuffle=False,
-        num_workers=data_config["num_workers"],
-    )
 
     print("训练集数量：", len(train_dataset))
     print("验证集数量：", len(val_dataset))
