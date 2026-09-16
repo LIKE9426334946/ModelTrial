@@ -1,4 +1,5 @@
 import argparse
+import csv
 from pathlib import Path
 
 
@@ -12,6 +13,7 @@ from torch.optim import Adam
 
 
 from utils.dataset import SelfDefineDataset
+from utils.metrics import evaluate
 from models.model_01 import Model01
 
 
@@ -32,8 +34,8 @@ def main():
 
     data_config = config["datasets"]
     data_config["root"] = args.root
-    print("使用的数据集目录为：",data_config["root"])
-    
+    print("使用的数据集目录为：", data_config["root"])
+
     torch.manual_seed(config["training"]["seed"])
 
     dataset = SelfDefineDataset(
@@ -83,6 +85,8 @@ def main():
     best_val_loss = float("inf")  # 无限大
     epochs = config["training"]["epochs"]
 
+    history = []
+
     # 开始训练
     for epoch in range(epochs):
         print(f"开始 Epoch {epoch+1}/{epochs}", flush=True)
@@ -102,20 +106,14 @@ def main():
             train_loss_sum += loss.item() * images.size(0)
         train_loss = train_loss_sum / len(train_dataset)
 
-        model.eval()
-        val_loss_sum = 0.0
-        with torch.no_grad():
-            for images, masks in val_loader:
-                images = images.to(device)
-                masks = masks.to(device)
-
-                logits = model(images)
-                loss = criterion(logits, masks)
-                val_loss_sum += loss.item() * images.size(0)
-        val_loss = val_loss_sum / len(val_dataset)
+        val_metrics = evaluate(model, val_loader, criterion, device)
+        val_loss = val_metrics["loss"]
 
         print(
-            f"Epoch {epoch+1}/{epochs} | Train Loss: {train_loss:.4f} | Val Loss: {val_loss:.4f}",
+            f"Epoch {epoch+1}/{epochs} | "
+            f"Train Loss: {train_loss:.4f} | "
+            f"Val Loss: {val_loss:.4f} | "
+            f"IoU: {val_metrics["iou"]:.4f} | F1: {val_metrics["f1"]:.4f} Precision: {val_metrics["precision"]:.4f} Recall: {val_metrics["recall"]:.4f}",
             flush=True,
         )
 
@@ -123,6 +121,24 @@ def main():
             best_val_loss = val_loss
             torch.save(model.state_dict(), output_dir / "best_model.pth")
             print("已保存最佳模型", flush=True)
+
+        history.append(
+            {
+                "epoch": epoch + 1,
+                "train_loss": train_loss,
+                "val_loss": val_loss,
+                "val_iou": val_metrics["iou"],
+                "val_f1": val_metrics["f1"],
+                "val_precision": val_metrics["precision"],
+                "val_recall": val_metrics["recall"],
+            }
+        )
+        with open(
+            output_dir / "metrics.csv", "w", newline="", encoding="utf-8"
+        ) as file:
+            writer = csv.DictWriter(file, fieldnames=history[0].keys())
+            writer.writeheader()
+            writer.writerows(history)
 
 
 if __name__ == "__main__":
