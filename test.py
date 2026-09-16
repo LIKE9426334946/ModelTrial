@@ -8,9 +8,9 @@ import torch.nn as nn
 import yaml
 from torch.utils.data import DataLoader, random_split
 
-from models.model_01 import Model01
 from utils.dataset import SelfDefineDataset
 from utils.metrics import evaluate
+from models import build_model
 
 
 def main():
@@ -47,8 +47,8 @@ def main():
         num_workers=data_config["num_workers"],
     )
 
-    output_dir = Path("outputs")
-    model = Model01(out_channels=config["model"]["out_channels"]).to(device)
+    output_dir = Path("outputs") / config["model"]["name"]
+    model = build_model(config["model"]).to(device)
 
     state_dict = torch.load(
         output_dir / "best_model.pth", map_location=device, weights_only=True

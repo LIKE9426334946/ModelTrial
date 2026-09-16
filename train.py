@@ -14,7 +14,7 @@ from torch.optim import Adam
 
 from utils.dataset import SelfDefineDataset
 from utils.metrics import evaluate
-from models.model_01 import Model01
+from models import build_model
 
 
 def main():
@@ -68,12 +68,12 @@ def main():
     print("验证集数量：", len(val_dataset))
     print("测试集数量：", len(test_dataset))
 
-    model = Model01(out_channels=config["model"]["out_channels"]).to(device)
+    model = build_model(config["model"]).to(device)
 
     criterion = nn.BCEWithLogitsLoss()
     optimizer = Adam(model.parameters(), lr=config["training"]["learning_rate"])
 
-    output_dir = Path("outputs")
+    output_dir = Path("outputs") /config["model"]["name"]
     output_dir.mkdir(parents=True, exist_ok=True)
 
     best_val_loss = float("inf")  # 无限大
