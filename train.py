@@ -15,6 +15,7 @@ from torch.optim import Adam
 from utils.dataset import SelfDefineDataset
 from utils.metrics import evaluate
 from models import build_model
+from utils.plot import plot_history
 
 
 def main():
@@ -73,7 +74,7 @@ def main():
     criterion = nn.BCEWithLogitsLoss()
     optimizer = Adam(model.parameters(), lr=config["training"]["learning_rate"])
 
-    output_dir = Path("outputs") /config["model"]["name"]
+    output_dir = Path("outputs") / config["model"]["name"]
     output_dir.mkdir(parents=True, exist_ok=True)
 
     best_val_loss = float("inf")  # 无限大
@@ -133,6 +134,7 @@ def main():
             writer = csv.DictWriter(file, fieldnames=history[0].keys())
             writer.writeheader()
             writer.writerows(history)
+    plot_history(output_dir, title=f"{config["model"]["name"]} | {config["dataset"]}")
 
 
 if __name__ == "__main__":
