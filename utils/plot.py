@@ -15,7 +15,11 @@ def main():
 
     epochs = [int(row["epoch"]) for row in rows]
 
-    panels = [(), (), ()]
+    panels = [
+        ("Loss", ["train_loss", "val_loss"]),
+        ("Validation IoU / F1", ["val_iou", "val_f1"]),
+        ("Validation Precision / Recall", ["val_precision", "val_recall"]),
+    ]
 
     fig, axes = plt.subplots(1, 3, figsize=(15, 4.5))
     for ax, (title, columns) in zip(axes, panels):
