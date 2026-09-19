@@ -6,4 +6,5 @@ __pycache__/
 /outputs/
 /data/
 /onnx/
+/.vscode/
 
