@@ -1,6 +1,6 @@
 # description
 # 一个小型的编码器-解码器，用来测试
-
+import torch
 import torch.nn as nn
 
 
@@ -39,3 +39,13 @@ class Model01(nn.Module):
         x = self.encoder(x)
         x = self.decoder(x)
         return x
+
+
+if __name__ == "__main__":
+    model = Model01(out_channels=1)
+    model.eval()
+
+    x = torch.randn(4, 3, 256, 256)
+    torch.onnx.export(
+        model, x, "onnx/model01.onnx", input_names=["x"], output_names=["output"]
+    )
