@@ -46,6 +46,7 @@ if __name__ == "__main__":
     model.eval()
 
     x = torch.randn(4, 3, 256, 256)
+    model(x)
     torch.onnx.export(
         model, x, "onnx/model01.onnx", input_names=["x"], output_names=["output"]
     )

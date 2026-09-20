@@ -2,7 +2,7 @@ from .model_01 import Model01
 from .model_02 import Model02
 from .model_03 import Model03
 
-MODEL_REGISTRY = {"model_01": Model01, "model_02": Model02,"model_03":Model03}
+MODEL_REGISTRY = {"model_01": Model01, "model_02": Model02, "model_03": Model03}
 
 
 def build_model(model_config):

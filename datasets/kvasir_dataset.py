@@ -16,7 +16,7 @@ class SelfDefineDataset(Dataset):
 
         self.image_paths = sorted(
             self.image_dir.glob("*.jpg")
-        )  # 注意，这里要使用通配符*来匹配所有文件
+        )  # 注意，这里要使用通配符*来匹配所有文件，返回的是以image_dir开头的路径
 
         # 对图片进行预处理
         self.image_transform = v2.Compose(
@@ -27,7 +27,7 @@ class SelfDefineDataset(Dataset):
             ]
         )
 
-        # 对标签进行处理
+        # 对标签进行处理 ?
         self.mask_transform = v2.Compose(
             [
                 v2.ToImage(),

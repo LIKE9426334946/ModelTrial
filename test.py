@@ -8,7 +8,7 @@ import torch.nn as nn
 import yaml
 from torch.utils.data import DataLoader, random_split
 
-from utils.dataset import SelfDefineDataset
+from datasets.kvasir_dataset import SelfDefineDataset
 from utils.metrics import evaluate
 from models import build_model
 

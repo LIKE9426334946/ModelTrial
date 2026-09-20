@@ -12,7 +12,7 @@ from torch.utils.data import DataLoader, random_split
 from torch.optim import Adam
 
 
-from utils.dataset import SelfDefineDataset
+from datasets.kvasir_dataset import SelfDefineDataset
 from utils.metrics import evaluate
 from models import build_model
 from utils.plot import plot_history

@@ -17,8 +17,8 @@ class Model03(nn.Module):
         self.path_embed = nn.Conv2d(
             3, d_model, kernel_size=patch_size, stride=patch_size
         )
-        self.pos_embed = nn.Parameter(torch.zeros(1, num_patches, d_model))
-        nn.init.normal_(self.pos_embed, std=0.02)
+        self.pos_embed = nn.Parameter(torch.zeros(1, num_patches, d_model))  # ?
+        nn.init.normal_(self.pos_embed, std=0.02)  # ?
 
         # 一个Transformer编码器层
         encoder_layer = nn.TransformerEncoderLayer(
@@ -74,6 +74,7 @@ if __name__ == "__main__":
     model.eval()
 
     x = torch.randn(4, 3, 256, 256)
+    model(x)
     torch.onnx.export(
         model, x, "onnx/model03.onnx", input_names=["x"], output_names=["output"]
     )
