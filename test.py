@@ -19,13 +19,18 @@ def main():
     with open("./config.yaml", "r", encoding="utf-8") as file:
         config = yaml.safe_load(file)
 
+    dataset_name = config["dataset"]
+
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--root", type=str, default=config["datasets"]["root"], help="数据集根目录"
+        "--root",
+        type=str,
+        default=config["datasets"][dataset_name]["root"],
+        help="数据集根目录",
     )
     args = parser.parse_args()
 
-    data_config = config["datasets"]
+    data_config = config["datasets"][dataset_name]
     data_config["root"] = args.root
     print("使用的数据集目录为：", data_config["root"])
 
