@@ -122,7 +122,10 @@ def main():
             f"Epoch {epoch+1}/{epochs} | "
             f"Train Loss: {train_loss:.4f} | "
             f"Val Loss: {val_loss:.4f} | "
-            f"IoU: {val_metrics["iou"]:.4f} | F1: {val_metrics["f1"]:.4f} Precision: {val_metrics["precision"]:.4f} Recall: {val_metrics["recall"]:.4f}",
+            f"IoU: {val_metrics['iou']:.4f} | "
+            f"F1: {val_metrics['f1']:.4f} | "
+            f"Precision: {val_metrics['precision']:.4f} | "
+            f"Recall: {val_metrics['recall']:.4f}",
             flush=True,
         )
 
