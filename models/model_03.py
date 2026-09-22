@@ -11,7 +11,7 @@ class Model03(nn.Module):
 
         image_size = 256
         patch_size = 16
-        d_model = 128
+        d_model = 256
         num_patches = (image_size // patch_size) ** 2
 
         self.path_embed = nn.Conv2d(

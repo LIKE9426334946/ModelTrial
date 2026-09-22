@@ -28,7 +28,14 @@ def main():
         default=config["datasets"][dataset_name]["root"],
         help="数据集根目录",
     )
+    parser.add_argument(
+        "--model",
+        type=str,
+        default=config["model"]["name"],
+        help="选择模型",
+    )
     args = parser.parse_args()
+    config["model"]["name"] = args.model
 
     data_config = config["datasets"][dataset_name]
     data_config["root"] = args.root
@@ -54,6 +61,7 @@ def main():
 
     output_dir = Path("outputs") / config["model"]["name"]
     model = build_model(config["model"]).to(device)
+    print(f"使用的模型为{config["model"]["name"]}")
 
     state_dict = torch.load(
         output_dir / "best_model.pth", map_location=device, weights_only=True

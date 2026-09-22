@@ -36,9 +36,17 @@ def main():
         default=config["datasets"][dataset_name]["root"],
         help="数据集根目录",
     )
+    parser.add_argument(
+        "--model",
+        type=str,
+        default=config["model"]["name"],
+        help="选择模型",
+    )
     args = parser.parse_args()
 
+    config["model"]["name"] = args.model
     data_config = config["datasets"][dataset_name]
+
     data_config["root"] = args.root
     print("使用的数据集目录为：", data_config["root"])
 
@@ -75,6 +83,7 @@ def main():
     print("测试集数量：", len(test_dataset))
 
     model = build_model(config["model"]).to(device)
+    print(f"使用的模型为{config["model"]["name"]}")
 
     criterion = nn.BCEWithLogitsLoss()
     optimizer = Adam(model.parameters(), lr=config["training"]["learning_rate"])
