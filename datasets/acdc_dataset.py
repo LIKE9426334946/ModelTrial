@@ -7,23 +7,30 @@ import torch
 import torch.nn.functional as F
 
 from torch.utils.data import Dataset
-from torchvision.transforms import v2
-from torchvision.transforms import InterpolationMode
 
 
 class SelfDefineDataset(Dataset):
     def __init__(
-        self, root, split="train", image_size=(256, 256), val_ratio=0.2, seed=23
+        self,
+        root,
+        split="train",
+        image_size=(256, 256),
+        val_ratio=0.2,
+        seed=23,
+        train_dir="training",
+        test_dir="testing",
+        in_channels=1,
     ):
         super().__init__()
 
         root = Path(root)
         self.image_size = tuple(image_size)
+        self.in_channels = in_channels
 
         if split == "test":
-            self.patient_dirs = sorted((root / "testing").glob("patient*"))
+            self.patient_dirs = sorted((root / test_dir).glob("patient*"))
         else:
-            patient_dirs = sorted((root / "training").glob("patient*"))
+            patient_dirs = sorted((root / train_dir).glob("patient*"))
             random.Random(seed).shuffle(patient_dirs)
             val_count = int(len(patient_dirs) * val_ratio)
             self.patient_dirs = {
@@ -43,7 +50,7 @@ class SelfDefineDataset(Dataset):
                 for z in range(num_slices):
                     self.samples.append((image_path, mask_path, z))
 
-    def __len(self):
+    def __len__(self):
         return len(self.samples)
 
     def __getitem__(self, index):
@@ -69,11 +76,7 @@ class SelfDefineDataset(Dataset):
         mask = F.interpolate(mask, size=self.image_size, mode="nearest-exact")[
             0, 0
         ].long()
+        if self.in_channels == 3:
+            image = image.repeat(3, 1, 1)
 
-        # image = image.repeat(3, 1, 1)
         return image, mask
-
-
-if __name__ == "__main__":
-    Dataset = SelfDefineDataset("./data/acdc")
-    one_data = Dataset[0]

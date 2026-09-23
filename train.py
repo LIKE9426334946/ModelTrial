@@ -11,8 +11,9 @@ import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader, random_split
 from torch.optim import Adam
 
-
-from datasets.kvasir_dataset import SelfDefineDataset
+from datasets import build_dataset
+from utils.task import build_criterion
+from utils.config import get_output_dir, load_config
 from utils.metrics import evaluate
 from models import build_model
 from utils.plot import plot_history
@@ -24,46 +25,16 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("使用设备：", device)
 
-    with open("./config.yaml", "r", encoding="utf-8") as file:
-        config = yaml.safe_load(file)
-
+    config = load_config()
     dataset_name = config["dataset"]
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--root",
-        type=str,
-        default=config["datasets"][dataset_name]["root"],
-        help="数据集根目录",
-    )
-    parser.add_argument(
-        "--model",
-        type=str,
-        default=config["model"]["name"],
-        help="选择模型",
-    )
-    args = parser.parse_args()
-
-    config["model"]["name"] = args.model
     data_config = config["datasets"][dataset_name]
-
-    data_config["root"] = args.root
+    print("使用的数据集为：", dataset_name)
     print("使用的数据集目录为：", data_config["root"])
 
     torch.manual_seed(config["training"]["seed"])
 
-    dataset = SelfDefineDataset(
-        data_config["root"],
-        images=data_config["images"],
-        masks=data_config["masks"],
-        image_size=data_config["image_size"],
-    )
-
-    train_dataset, val_dataset, test_dataset = random_split(
-        dataset,
-        data_config["split_ratio"],
-        generator=torch.Generator().manual_seed(config["training"]["seed"]),
-    )
+    train_dataset = build_dataset(config, "train")
+    val_dataset = build_dataset(config, "val")
 
     train_loader = DataLoader(
         train_dataset,
@@ -80,16 +51,16 @@ def main():
 
     print("训练集数量：", len(train_dataset))
     print("验证集数量：", len(val_dataset))
-    print("测试集数量：", len(test_dataset))
 
-    model = build_model(config["model"]).to(device)
-    print(f"使用的模型为{config["model"]["name"]}")
+    model = build_model(config["model"], data_config).to(device)
+    print(f"使用的模型为{config['model']['name']}")
 
-    criterion = nn.BCEWithLogitsLoss()
+    criterion = build_criterion(data_config)
     optimizer = Adam(model.parameters(), lr=config["training"]["learning_rate"])
 
-    output_dir = Path("outputs") / config["model"]["name"]
+    output_dir = get_output_dir(config)
     output_dir.mkdir(parents=True, exist_ok=True)
+    print("结果保存目录：", output_dir)
 
     best_val_loss = float("inf")  # 无限大
     epochs = config["training"]["epochs"]
@@ -115,7 +86,7 @@ def main():
             train_loss_sum += loss.item() * images.size(0)
         train_loss = train_loss_sum / len(train_dataset)
 
-        val_metrics = evaluate(model, val_loader, criterion, device)
+        val_metrics = evaluate(model, val_loader, criterion, device, data_config)
         val_loss = val_metrics["loss"]
 
         print(
@@ -151,7 +122,7 @@ def main():
             writer = csv.DictWriter(file, fieldnames=history[0].keys())
             writer.writeheader()
             writer.writerows(history)
-    plot_history(output_dir, title=f"{config["model"]["name"]} | {config["dataset"]}")
+    plot_history(output_dir, title=f"{config['model']['name']} | {dataset_name}")
 
 
 if __name__ == "__main__":

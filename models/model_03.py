@@ -6,16 +6,15 @@ import torch.nn as nn
 
 
 class Model03(nn.Module):
-    def __init__(self, out_channels=1):
+    def __init__(self, out_channels=1, in_channels=3, image_size=(256, 256)):
         super().__init__()
 
-        image_size = 256
         patch_size = 16
         d_model = 256
-        num_patches = (image_size // patch_size) ** 2
+        num_patches = (image_size[0] // patch_size) * (image_size[1] // patch_size)
 
         self.path_embed = nn.Conv2d(
-            3, d_model, kernel_size=patch_size, stride=patch_size
+            in_channels, d_model, kernel_size=patch_size, stride=patch_size
         )
         self.pos_embed = nn.Parameter(torch.zeros(1, num_patches, d_model))  # ?
         nn.init.normal_(self.pos_embed, std=0.02)  # ?

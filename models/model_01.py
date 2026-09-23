@@ -5,12 +5,12 @@ import torch.nn as nn
 
 
 class Model01(nn.Module):
-    def __init__(self, out_channels=1):
+    def __init__(self, out_channels=1, in_channels=3):
         super().__init__()
 
         # 编码器
         self.encoder = nn.Sequential(
-            nn.Conv2d(3, 16, kernel_size=3, padding=1),
+            nn.Conv2d(in_channels, 16, kernel_size=3, padding=1),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2),
             #

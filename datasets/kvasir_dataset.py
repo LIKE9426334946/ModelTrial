@@ -8,11 +8,13 @@ from torchvision.transforms import v2, InterpolationMode
 
 # 定义数据集类，实现图片和mask的读取
 class SelfDefineDataset(Dataset):
-    def __init__(self, root, images, masks, image_size):
+    def __init__(self, root, images, masks, image_size, in_channels=3):
         super().__init__()
 
         self.image_dir = Path(root) / images
         self.mask_dir = Path(root) / masks
+
+        self.image_mode = {1: "L", 3: "RGB"}[in_channels]
 
         self.image_paths = sorted(
             self.image_dir.glob("*.jpg")

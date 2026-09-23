@@ -1,6 +1,5 @@
 import csv
 from pathlib import Path
-import yaml
 
 
 import matplotlib.pyplot as plt
