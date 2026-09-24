@@ -6,7 +6,7 @@ def build_criterion(data_config):
         "binary": nn.BCEWithLogitsLoss,
         "multiclass": nn.CrossEntropyLoss,
     }
-    return loss_classes[data_config["mode"]]  # config[datasets][config[dataset]]
+    return loss_classes[data_config["mode"]]()  # 别忘了，这里有个小括号
 
 
 def predict_classes(logits, data_config):
