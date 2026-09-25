@@ -58,7 +58,7 @@ def main():
     print("结果保存目录：", output_dir)
 
     best_val_loss = float("inf")  # 无限大
-    best_val_iou = float("inf")
+    best_val_iou = 0.0
     epochs = config["training"]["epochs"]
 
     history = []
@@ -101,7 +101,7 @@ def main():
             flush=True,
         )
 
-        if val_iou < best_val_iou:
+        if val_iou > best_val_iou:
             best_val_iou = val_iou
             torch.save(model.state_dict(), output_dir / "best_model.pth")
             print("已保存最佳模型", flush=True)
