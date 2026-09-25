@@ -42,4 +42,4 @@ datasets:
     metrics:
       reduction: macro
       include_background: false
-      zero_dicision: 0
+      zero_division: 0

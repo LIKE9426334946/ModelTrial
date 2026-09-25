@@ -1,8 +1,20 @@
 from .model_01 import Model01
 from .model_02 import Model02
 from .model_03 import Model03
+from .model_04 import Model04
+from .model_05 import Model05
+from .model_06 import Model06
+from .model_07 import Model07
 
-MODEL_REGISTRY = {"model_01": Model01, "model_02": Model02, "model_03": Model03}
+MODEL_REGISTRY = {
+    "model_01": Model01,
+    "model_02": Model02,
+    "model_03": Model03,
+    "model_04": Model04,
+    "model_05": Model05,
+    "model_06": Model06,
+    "model_07": Model07,
+}
 
 
 def build_model(model_config, data_config):

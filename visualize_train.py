@@ -1,40 +1,64 @@
-import argparse
-import csv
+from datetime import datetime
 from pathlib import Path
 
 import torch
-import torch.nn as nn
 import yaml
-import matplotlib.pyplot as plt
-
-from torch.utils.data import DataLoader
+from matplotlib import colormaps
 from torch.optim import Adam
+from torch.utils.data import DataLoader
+from torch.utils.tensorboard import SummaryWriter
 
 from datasets import build_dataset
-from utils.task import build_criterion
-from utils.config import get_output_dir, load_config
-from utils.metrics import evaluate
 from models import build_model
-from utils.plot import plot_history
+from utils.config import load_config
+from utils.metrics import evaluate
+from utils.task import build_criterion, predict_classes
+
+
+@torch.no_grad()
+def log_images(writer, model, images, masks, device, data_config, palette, epoch):
+    """展示固定验证样本；每张对比图依次为原图、真实标签、预测标签。"""
+    model.eval()
+    logits = model(images.to(device))
+    predictions = predict_classes(logits, data_config).cpu()
+
+    if data_config["mode"] == "binary":
+        targets = masks[:, 0].long()
+        predictions = predictions[:, 0]
+        probabilities = logits.sigmoid().cpu()
+        probability_names = ["foreground"]
+    else:
+        targets = masks.long()
+        probabilities = logits.softmax(dim=1).cpu()
+        probability_names = [f"class_{i}" for i in range(data_config["num_classes"])]
+
+    # 灰度原图转成三通道，便于和标签的彩色显示拼在一起。
+    originals = images.repeat(1, 3, 1, 1) if images.size(1) == 1 else images
+    target_colors = palette[targets].permute(0, 3, 1, 2)
+    prediction_colors = palette[predictions].permute(0, 3, 1, 2)
+
+    for i in range(images.size(0)):
+        comparison = torch.cat(
+            [originals[i], target_colors[i], prediction_colors[i]], dim=2
+        )
+        writer.add_image(
+            f"Images/sample_{i + 1}/Input_GT_Prediction", comparison, epoch
+        )
+
+    # 概率图越亮，代表模型认为该像素属于对应类别的概率越高。
+    for i, name in enumerate(probability_names):
+        writer.add_images(f"Probability/{name}", probabilities[:, i : i + 1], epoch)
 
 
 def main():
-
-    # 定义设备
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print("使用设备：", device)
-
     config = load_config()
     dataset_name = config["dataset"]
     data_config = config["datasets"][dataset_name]
-    print("使用的数据集为：", dataset_name)
-    print("使用的数据集目录为：", data_config["root"])
-
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     torch.manual_seed(config["training"]["seed"])
 
     train_dataset = build_dataset(config, "train")
     val_dataset = build_dataset(config, "val")
-
     train_loader = DataLoader(
         train_dataset,
         batch_size=data_config["batch_size"],
@@ -48,84 +72,93 @@ def main():
         num_workers=data_config["num_workers"],
     )
 
-    print("训练集数量：", len(train_dataset))
-    print("验证集数量：", len(val_dataset))
+    # 从验证集均匀选择至多四张样本，之后每轮都观察相同的图片
+    indices = torch.linspace(0, len(val_dataset) - 1, steps=min(4, len(val_dataset)))
+    sample_indices = indices.long().tolist()
+    sample_images, sample_masks = zip(*(val_dataset[i] for i in sample_indices))
+    sample_images = torch.stack(sample_images)
+    sample_masks = torch.stack(sample_masks)
+
+    # 背景固定为黑色，二分类前景为白色，多分类使用不同颜色
+    num_classes = data_config["num_classes"]
+    cmap = colormaps["tab20"].resampled(num_classes)
+    palette = torch.tensor(
+        [cmap(i)[:3] for i in range(num_classes)], dtype=torch.float32
+    )
+    palette[0] = 0
+    if data_config["mode"] == "binary":
+        palette[1] = 1
 
     model = build_model(config["model"], data_config).to(device)
-    print(f"使用的模型为{config['model']['name']}")
-
     criterion = build_criterion(data_config)
     optimizer = Adam(model.parameters(), lr=config["training"]["learning_rate"])
 
-    output_dir = get_output_dir(config)
-    output_dir.mkdir(parents=True, exist_ok=True)
-    print("结果保存目录：", output_dir)
+    # 每次运行创建独立目录，便于在 TensorBoard 中比较不同实验。
+    run_name = datetime.now().strftime("%Y%m%d-%H%M%S-%f")
+    log_dir = Path("runs") / dataset_name / config["model"]["name"] / run_name
 
-    best_val_loss = float("inf")  # 无限大
-    epochs = config["training"]["epochs"]
-
-    history = []
-
-    # 开始训练
-    for epoch in range(epochs):
-        print(f"开始 Epoch {epoch+1}/{epochs}", flush=True)
-
-        model.train()
-        train_loss_sum = 0.0
-        for images, masks in train_loader:
-            images = images.to(device)
-            masks = masks.to(device)
-
-            optimizer.zero_grad()
-            logits = model(images)
-            loss = criterion(logits, masks)
-            loss.backward()
-            optimizer.step()
-
-            train_loss_sum += loss.item() * images.size(
-                0
-            )  # 平均每个像素的损失x图片的数量
-        train_loss = train_loss_sum / len(
-            train_dataset
-        )  # 最后再除以训练集图片的数量，得到平均损失
-
-        val_metrics = evaluate(model, val_loader, criterion, device, data_config)
-        val_loss = val_metrics["loss"]
-
-        print(
-            f"Epoch {epoch+1}/{epochs} | "
-            f"Train Loss: {train_loss:.4f} | "
-            f"Val Loss: {val_loss:.4f} | "
-            f"IoU: {val_metrics['iou']:.4f} | "
-            f"F1: {val_metrics['f1']:.4f} | "
-            f"Precision: {val_metrics['precision']:.4f} | "
-            f"Recall: {val_metrics['recall']:.4f}",
-            flush=True,
+    with SummaryWriter(log_dir=str(log_dir), flush_secs=10) as writer:
+        config_text = yaml.safe_dump(config, allow_unicode=True, sort_keys=False)
+        writer.add_text("Config", f"```yaml\n{config_text}\n```", 0)
+        writer.add_text(
+            "Image_guide",
+            "Left to right: input | ground truth | prediction. "
+            "Inputs use the dataset's resized [0, 1] images. "
+            "Step 0 shows predictions before training. "
+            f"Validation sample indices: {sample_indices}.",
+            0,
         )
 
-        if val_loss < best_val_loss:
-            best_val_loss = val_loss
-            torch.save(model.state_dict(), output_dir / "best_model.pth")
-            print("已保存最佳模型", flush=True)
-
-        history.append(
-            {
-                "epoch": epoch + 1,
-                "train_loss": train_loss,
-                "val_loss": val_loss,
-                "val_iou": val_metrics["iou"],
-                "val_f1": val_metrics["f1"],
-                "val_precision": val_metrics["precision"],
-                "val_recall": val_metrics["recall"],
-            }
+        log_images(
+            writer, model, sample_images, sample_masks, device, data_config, palette, 0
         )
-        with open(
-            output_dir / "metrics.csv", "w", newline="", encoding="utf-8"
-        ) as file:
-            writer = csv.DictWriter(file, fieldnames=history[0].keys())
-            writer.writeheader()
-            writer.writerows(history)
-    plot_history(output_dir, title=f"{config['model']['name']} | {dataset_name}")
+        writer.flush()
+        global_step = 0
+
+        for epoch in range(1, config["training"]["epochs"] + 1):
+            print(f"开始 Epoch {epoch}/{config["training"]["epochs"]+1}")
+            model.train()
+            train_loss_sum = 0.0
+
+            for images, masks in train_loader:
+                images = images.to(device)
+                masks = masks.to(device)
+
+                optimizer.zero_grad()
+                logits = model(images)
+                loss = criterion(logits, masks)
+                loss.backward()
+                optimizer.step()
+
+                loss_value = loss.item()
+                train_loss_sum += loss_value * images.size(0)
+                global_step += 1
+                writer.add_scalar("Loss/batch", loss_value, global_step)
+
+            train_loss = train_loss_sum / len(train_dataset)
+            val_metrics = evaluate(model, val_loader, criterion, device, data_config)
+
+            # 同一张图中比较每轮训练 Loss 和验证 Loss。
+            writer.add_scalars(
+                "Loss/epoch", {"train": train_loss, "val": val_metrics["loss"]}, epoch
+            )
+            for name in ("iou", "f1", "precision", "recall"):
+                writer.add_scalar(f"Metrics/val_{name}", val_metrics[name], epoch)
+            writer.add_scalar(
+                "Training/learning_rate", optimizer.param_groups[0]["lr"], epoch
+            )
+
+            log_images(
+                writer,
+                model,
+                sample_images,
+                sample_masks,
+                device,
+                data_config,
+                palette,
+                epoch,
+            )
+            writer.flush()
 
 
 if __name__ == "__main__":

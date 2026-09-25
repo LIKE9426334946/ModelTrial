@@ -48,7 +48,7 @@ class SelfDefineDataset(Dataset):
         mask_path = self.mask_dir / image_path.name
 
         with Image.open(image_path) as file:
-            image = file.convert("RGB")
+            image = file.convert(self.image_mode)
 
         with Image.open(mask_path) as file:
             mask = file.convert("L")

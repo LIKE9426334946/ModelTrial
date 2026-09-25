@@ -1,11 +1,7 @@
-import argparse
 import csv
-from pathlib import Path
 
 import torch
 import torch.nn as nn
-import yaml
-import matplotlib.pyplot as plt
 
 from torch.utils.data import DataLoader
 from torch.optim import Adam
@@ -62,6 +58,7 @@ def main():
     print("结果保存目录：", output_dir)
 
     best_val_loss = float("inf")  # 无限大
+    best_val_iou = float("inf")
     epochs = config["training"]["epochs"]
 
     history = []
@@ -91,6 +88,7 @@ def main():
 
         val_metrics = evaluate(model, val_loader, criterion, device, data_config)
         val_loss = val_metrics["loss"]
+        val_iou = val_metrics["iou"]
 
         print(
             f"Epoch {epoch+1}/{epochs} | "
@@ -103,8 +101,8 @@ def main():
             flush=True,
         )
 
-        if val_loss < best_val_loss:
-            best_val_loss = val_loss
+        if val_iou < best_val_iou:
+            best_val_iou = val_iou
             torch.save(model.state_dict(), output_dir / "best_model.pth")
             print("已保存最佳模型", flush=True)
 
