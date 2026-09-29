@@ -1,15 +1,13 @@
-import json
 from pathlib import Path
 import csv
 
 import matplotlib.pyplot as plt
 import torch
 import torch.nn as nn
-from torch.utils.data import DataLoader, random_split
+from torch.utils.data import DataLoader
 
 from utils.config import get_output_dir, load_config
 from utils.task import build_criterion, predict_classes
-from datasets.kvasir_dataset import SelfDefineDataset
 from utils.metrics import evaluate
 from models import build_model
 from datasets import build_dataset
