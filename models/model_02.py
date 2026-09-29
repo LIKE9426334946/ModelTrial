@@ -1,6 +1,6 @@
 # description
 # 使用SMP库提供的UNet网络结构，编码器为ResNet18，无预训练参数
-# 
+#
 
 import torch
 import torch.nn as nn

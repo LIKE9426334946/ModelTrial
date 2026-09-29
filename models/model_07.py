@@ -21,3 +21,13 @@ class Model07(nn.Module):
 
     def forward(self, x):
         return self.unet(x)
+
+if __name__ == "__main__":
+    model = Model07(out_channels=1)
+    model.eval()
+
+    x = torch.randn(4, 3, 256, 256)
+    model(x)
+    torch.onnx.export(
+        model, x, "onnx/model07.onnx", input_names=["x"], output_names=["output"]
+    )

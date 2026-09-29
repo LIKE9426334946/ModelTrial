@@ -163,3 +163,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+# 命令行执行代码
+# tensorboard --logdir=runs

@@ -21,4 +21,3 @@ class Model05(nn.Module):
 
     def forward(self, x):
         return self.unet(x)
-

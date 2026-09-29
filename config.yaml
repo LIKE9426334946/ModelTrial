@@ -1,7 +1,7 @@
 model:
   name: model_01
 
-dataset: kvasir-seg
+dataset: acdc
 
 output_root: ./outputs
 
