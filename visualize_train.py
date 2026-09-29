@@ -116,7 +116,7 @@ def main():
         global_step = 0
 
         for epoch in range(1, config["training"]["epochs"] + 1):
-            print(f"开始 Epoch {epoch}/{config["training"]["epochs"]+1}")
+            print(f"开始 Epoch {epoch}/{config["training"]["epochs"]}")
             model.train()
             train_loss_sum = 0.0
 

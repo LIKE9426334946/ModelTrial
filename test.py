@@ -1,11 +1,10 @@
-import argparse
 import json
 from pathlib import Path
+import csv
 
 import matplotlib.pyplot as plt
 import torch
 import torch.nn as nn
-import yaml
 from torch.utils.data import DataLoader, random_split
 
 from utils.config import get_output_dir, load_config
@@ -16,14 +15,68 @@ from models import build_model
 from datasets import build_dataset
 
 
+@torch.no_grad()
+def save_visualizations(
+    model, loader, device, data_config, visualize_dir, dataset_name, model_name
+):
+    model.eval()
+    binary = data_config["mode"] == "binary"
+    num_classes = data_config["num_classes"]
+    cmap = "gray" if binary else plt.get_cmap("tab10", num_classes)
+    sample_index = 1
+
+    for images, masks in loader:
+        logits = model(images.to(device))
+        predictions = predict_classes(logits, data_config).cpu()
+
+        for i in range(1):  # 每次DataLoader保存一张图片
+            fig, axes = plt.subplots(1, 3, figsize=(12, 4))
+
+            if images.size(1) == 1:  # 通道为1
+                axes[0].imshow(images[i, 0].numpy(), cmap="gray", vmin=0, vmax=1)
+            else:
+                axes[0].imshow(images[i].permute(1, 2, 0).numpy())
+            mask = masks[i, 0] if binary else masks[i]
+            prediction = predictions[i, 0] if binary else predictions[i]
+
+            axes[1].imshow(
+                mask.numpy(),
+                cmap=cmap,
+                vmin=0,
+                vmax=num_classes - 1,
+                interpolation="nearest",
+            )
+            axes[2].imshow(
+                prediction.numpy(),
+                cmap=cmap,
+                vmin=0,
+                vmax=num_classes - 1,
+                interpolation="nearest",
+            )
+            for ax, title in zip(axes, ("Image", "Ground Truth", "Prediction")):
+                ax.set_title(title)
+                ax.axis("off")
+            fig.suptitle(f"Sample {sample_index:06d}")
+            fig.tight_layout()
+            fig_save_dir = visualize_dir / dataset_name / model_name
+            fig_save_dir.mkdir(parents=True, exist_ok=True)
+
+            fig.savefig(
+                fig_save_dir / f"sample_{sample_index:06d}.png",
+                dpi=150,
+                bbox_inches="tight",
+            )
+            plt.close(fig)
+            sample_index += 1
+    return sample_index - 1
+
+
 def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
     config = load_config()
     dataset_name = config["dataset"]
     data_config = config["datasets"][dataset_name]
-    print("使用的数据集为：", dataset_name)
-    print("使用的数据集目录为：", data_config["root"])
+    model_name = config["model"]["name"]
 
     test_dataset = build_dataset(config, "test")
     test_loader = DataLoader(
@@ -33,60 +86,48 @@ def main():
         num_workers=data_config["num_workers"],
     )
 
-    output_dir = get_output_dir(config)
+    checkpoint_dir = get_output_dir(config)
     model = build_model(config["model"], data_config).to(device)
-    print(f"使用的模型为{config['model']['name']}")
 
     state_dict = torch.load(
-        output_dir / "best_model.pth", map_location=device, weights_only=True
+        checkpoint_dir / "best_model.pth", map_location=device, weights_only=True
     )
     model.load_state_dict(state_dict)
+    model.eval()
 
     # 评估整个测试集
+    test_output_dir = Path("test_outputs")
+    visualize_dir = test_output_dir / "visualize"
+    visualize_dir.mkdir(parents=True, exist_ok=True)
+
+    print("使用的模型为：", model_name)
+    print("使用的数据集为：", dataset_name)
+    print("使用的数据集目录为：", data_config["root"])
+    print("测试集样本数：", len(test_dataset))
+
     criterion = build_criterion(data_config)
     results = evaluate(model, test_loader, criterion, device, data_config)
-    print("测试集样本数：", len(test_dataset))
+
+    row = {
+        "dataset": dataset_name,
+        "model": model_name,
+        "num_samples": len(test_dataset),
+        **results,
+    }
+    csv_path = test_output_dir / "test_metrics.csv"
+    with csv_path.open("w", newline="", encoding="utf-8-sig") as file:
+        writer = csv.DictWriter(file, fieldnames=list(row))
+        writer.writeheader()
+        writer.writerow(row)
 
     for name, value in results.items():
         print(f"{name}: {value:.4f}")
 
-    with open(output_dir / "test_metrics.json", "w", encoding="utf-8") as file:
-        json.dump(results, file, indent=4)
-
-    images, masks = next(iter(test_loader))
-    with torch.no_grad():
-        logits = model(images.to(device))
-        predictions = predict_classes(logits, data_config).cpu()
-
-    binary = data_config["mode"] == "binary"
-    count = min(4, images.size(0))
-    fig, axes = plt.subplots(count, 3, figsize=(10, count * 3), squeeze=False)
-    cmap = "gray" if binary else plt.get_cmap("tab10", data_config["num_classes"])
-    vmax = data_config["num_classes"] - 1
-
-    for i in range(count):
-        if images.size(1) == 1:
-            axes[i, 0].imshow(images[i, 0].numpy(), cmap="gray")
-        else:
-            axes[i, 0].imshow(images[i].permute(1, 2, 0).numpy())
-        axes[i, 0].set_title("Image")
-
-        mask = masks[i, 0] if binary else masks[i]
-        prediction = predictions[i, 0] if binary else predictions[i]
-        axes[i, 1].imshow(
-            mask.numpy(), cmap=cmap, vmin=0, vmax=vmax, interpolation="nearest"
-        )
-        axes[i, 1].set_title("Ground Truth")
-        axes[i, 2].imshow(
-            prediction.numpy(), cmap=cmap, vmin=0, vmax=vmax, interpolation="nearest"
-        )
-        axes[i, 2].set_title("Prediction")
-        for ax in axes[i]:
-            ax.axis("off")
-    plt.tight_layout()
-    fig.savefig(output_dir / "predictions.png", dpi=100)
-    plt.show()
-    plt.close(fig)
+    print("测试指标已保存：", csv_path)
+    count = save_visualizations(
+        model, test_loader, device, data_config, visualize_dir, dataset_name, model_name
+    )
+    print(f"已保存{count}张组合图：{visualize_dir}")
 
 
 if __name__ == "__main__":
